@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "python-algorithm-samples"
+version = "0.1.0"
+description = "Algorithmic implementations in pure Python: Push-Relabel Maximum Flow & Spatial k-d Tree."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["algorithms", "graph-theory", "network-flow", "kd-tree", "computational-geometry"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["sample_1_push_relabel", "sample_2_kd_tree"]
+python_files = ["test_*.py"]
+
