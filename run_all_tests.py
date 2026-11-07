@@ -16,8 +16,8 @@ def run_all_tests() -> bool:
     """
     root_dir = Path(__file__).resolve().parent
 
-    dir_1 = root_dir / "sample_1_push_relabel"
-    dir_2 = root_dir / "sample_2_kd_tree"
+    dir_1 = root_dir / "sample_1_astar"
+    dir_2 = root_dir / "sample_2_lru_cache"
 
     sys.path.insert(0, str(dir_1))
     sys.path.insert(0, str(dir_2))

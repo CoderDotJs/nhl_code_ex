@@ -5,11 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "python-algorithm-samples"
 version = "0.1.0"
-description = "Algorithmic implementations in pure Python: Push-Relabel Maximum Flow & Spatial k-d Tree."
+description = "Algorithmic implementations in pure Python: A* Search & O(1) LRU Cache."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-keywords = ["algorithms", "graph-theory", "network-flow", "kd-tree", "computational-geometry"]
+keywords = ["algorithms", "graph-search", "astar", "lru-cache", "data-structures"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -19,6 +19,5 @@ classifiers = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["sample_1_push_relabel", "sample_2_kd_tree"]
+testpaths = ["sample_1_astar", "sample_2_lru_cache"]
 python_files = ["test_*.py"]
-

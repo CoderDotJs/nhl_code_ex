@@ -1,8 +1,11 @@
 # Python Algorithmic Samples
 
-This repository contains two algorithmic code samples implemented from scratch in pure Python (standard library only, no external dependencies). I chose these two problems because they show different areas of algorithm engineering: network flow optimization and multi-dimensional spatial indexing.
+This repository contains two practical algorithmic implementations written from scratch in pure Python (standard library only, zero external dependencies):
 
-Both samples include comprehensive test suites with property checks, textbook benchmarks, and randomized stress tests.
+1. **A* Search Algorithm (`sample_1_astar/`)**: Heuristic graph pathfinding supporting arbitrary weighted graphs and 2D obstacle grids with diagonal corner-cutting prevention.
+2. **O(1) LRU Cache (`sample_2_lru_cache/`)**: High-performance Least Recently Used cache built using a Doubly Linked List, Hash Map, sentinel nodes, and optional TTL expiration.
+
+Both implementations emphasize the idea of **"conceptually clean, algorithmically non-trivial"**—simple to follow and reason about, but requiring careful invariant maintenance, optimal asymptotic complexity, and comprehensive edge-case handling.
 
 ---
 
@@ -10,123 +13,103 @@ Both samples include comprehensive test suites with property checks, textbook be
 
 ```text
 new/
+├── .gitignore
+├── LICENSE
+├── pyproject.toml
 ├── README.md
-├── run_all_tests.py                 # Test runner (runs all 22 tests)
-├── sample_1_push_relabel/           # Sample 1: Push-Relabel Max Flow
-│   ├── push_relabel.py              # Core implementation
-│   ├── test_push_relabel.py         # Unit tests & invariants
-│   └── __init__.py
-└── sample_2_kd_tree/                # Sample 2: Spatial k-d Tree
-    ├── kd_tree.py                   # Core implementation
-    ├── test_kd_tree.py              # Unit tests & 5D fuzzing
-    └── __init__.py
+├── run_all_tests.py                 # Test runner (executes all 20 tests)
+├── sample_1_astar/                  # Sample 1: A* Pathfinding
+│   ├── __init__.py
+│   ├── astar.py                     # Core algorithm & grid graph
+│   └── test_astar.py                # 9 unit tests
+└── sample_2_lru_cache/              # Sample 2: O(1) LRU Cache
+    ├── __init__.py
+    ├── lru_cache.py                 # Doubly linked list + hash map
+    └── test_lru_cache.py            # 11 unit tests
 ```
 
 ---
 
-## Sample 1: Push-Relabel Maximum Flow (`sample_1_push_relabel/`)
+## Sample 1: A* Pathfinding (`sample_1_astar/`)
 
-### Why Push-Relabel?
-Standard augmenting path algorithms like Edmonds-Karp run in $O(V E^2)$, which gets slow on dense graphs with large capacities. The Goldberg-Tarjan push-relabel approach operates locally by pushing excess flow across neighboring vertices and lifting vertex heights.
+### Why It's "Easy but Hard"
+The core concept is intuitive: like Dijkstra's algorithm, but guided by a heuristic function estimating remaining distance ($f(n) = g(n) + h(n)$).
 
-With **highest-label selection**, the theoretical runtime drops to $O(V^2 \sqrt{E})$, and practical performance is even faster when paired with heuristics.
-
-### Key Implementation Details
-- **Highest-label active node buckets:** Nodes with excess flow are kept in bucket lists grouped by height. Always discharging the highest active vertex first keeps the number of non-saturating pushes low.
-- **Gap relabeling heuristic:** If an intermediate height level becomes completely empty, all vertices above that height (up to $n$) can no longer reach the sink in the residual graph. The solver immediately raises their heights to $n + 1$ to avoid wasted work.
-- **Global backward BFS relabeling:** Every $4n$ work units, the solver runs a backward BFS from the sink in the residual graph to reset heights to exact shortest-path distances.
-- **Preflow-to-flow conversion:** After Phase 1 calculates the max flow to the sink, leftover excess at internal nodes is returned back along flow paths to the source (cancelling any internal flow cycles). This guarantees exact flow conservation ($\sum f_{in} = \sum f_{out}$) at every non-terminal node.
-- **Min-cut extraction & verification:** Extracts the $(S, T)$ partition using reachability in the residual network and verifies that cut capacity matches the flow value.
+However, writing a robust, production-grade A* requires addressing several tricky details:
+- **Generic Graph Abstraction:** Decoupled through a `Graph[T]` protocol so it works over abstract node graphs, road networks, or 2D grids.
+- **Priority Queue Tie-breaking:** Using an internal incrementing counter so `heapq` never fails when comparing nodes with identical $f$-scores.
+- **Diagonal Movement & Corner Pinching:** On 8-directional grids, diagonal movement must prevent "corner-cutting" through adjacent impassable obstacles.
+- **Heuristic Compatibility:** Built-in admissible heuristics (Manhattan for 4-way movement, Euclidean, and Octile for 8-way movement).
 
 ### Quick Example
 ```python
-from sample_1_push_relabel import FlowNetwork, PushRelabelSolver
+from sample_1_astar import GridGraph, astar_search, manhattan_distance
 
-# Setup a small network
-net = FlowNetwork(num_nodes=6)
-s, v1, v2, v3, v4, t = 0, 1, 2, 3, 4, 5
+# Create a 10x10 grid with obstacles
+obstacles = {(2, 1), (2, 2), (2, 3)}
+grid = GridGraph(width=10, height=10, obstacles=obstacles)
 
-net.add_edge(s, v1, 16.0)
-net.add_edge(s, v2, 13.0)
-net.add_edge(v1, v3, 12.0)
-net.add_edge(v2, v1, 4.0)
-net.add_edge(v2, v4, 14.0)
-net.add_edge(v3, v2, 9.0)
-net.add_edge(v3, t, 20.0)
-net.add_edge(v4, v3, 7.0)
-net.add_edge(v4, t, 4.0)
+# Find optimal path from (0, 2) to (5, 2)
+result = astar_search(
+    graph=grid,
+    start=(0, 2),
+    goal=(5, 2),
+    heuristic=manhattan_distance,
+)
 
-solver = PushRelabelSolver(net, source=s, sink=t)
-max_flow = solver.compute_max_flow()
-print(f"Max flow: {max_flow}")  # 23.0
-
-cut_s, cut_t = solver.compute_min_cut()
-print(f"Cut partition: S={cut_s}, T={cut_t}")
-
-# Verify conservation and capacity constraints
-assert solver.verify_optimality()
+if result:
+    print(f"Path found! Cost: {result.cost}, Explored: {result.nodes_explored} nodes")
+    print(f"Waypoints: {result.path}")
 ```
 
 ---
 
-## Sample 2: Multi-Dimensional k-d Tree (`sample_2_kd_tree/`)
+## Sample 2: O(1) LRU Cache (`sample_2_lru_cache/`)
 
-### Overview
-A balanced $k$-d tree implementation for spatial indexing and nearest-neighbor search in arbitrary dimensions ($\mathbb{R}^k$).
+### Why It's "Easy but Hard"
+Everyone understands what an LRU cache does: when capacity is reached, drop the item that hasn't been accessed for the longest time.
 
-### Key Implementation Details
-- **Variance / max-spread axis selection:** Rather than naively cycling through dimensions ($0, 1, \dots, k-1$), each split chooses the coordinate axis with the largest spread ($\max - \min$). This avoids long, narrow bounding boxes on anisotropic or correlated datasets.
-- **Branch-and-bound pruning:** Each node keeps a tight bounding box (`HyperRectangle`). During $k$-NN search, we project the query point onto candidate bounding boxes. If the minimum distance to a box cannot beat the current $k$-th best neighbor, the entire subtree is pruned.
-- **Metric protocol:** Distance calculations are decoupled through a `Metric` protocol. Included out of the box:
-  - Euclidean ($L_2$)
-  - Manhattan ($L_1$)
-  - Chebyshev ($L_\infty$)
-  - Minkowski ($L_p$)
-- **Range & radius queries:**
-  - `range_search(box)`: returns all points inside an axis-aligned bounding box.
-  - `radius_search(center, radius)`: returns all points within a hypersphere.
-- **Dynamic insertion & rebalancing:** Supports dynamic point inserts. If a subtree becomes unbalanced (one branch holds more than 70% of the nodes), that subtree is rebuilt on the fly around the median.
+Implementing it with true **$O(1)$ time complexity** for both `get` and `put` from scratch without relying on Python's built-in `collections.OrderedDict` requires building a custom Doubly Linked List and Hash Map:
+- **Sentinel Nodes:** Uses dummy `head` and `tail` sentinels to eliminate null-pointer boundary checks during node insertion, deletion, and relocation.
+- **Exact Pointer Relocation:** Relocates nodes to the MRU (Most Recently Used) position in $O(1)$ time upon access.
+- **Non-Mutating Peeking:** Provides a `.peek(key)` method to read values without refreshing the LRU eviction priority.
+- **Optional TTL Expiration:** Supports per-item or default time-to-live expiration based on Python's monotonic clock (`time.monotonic()`).
 
 ### Quick Example
 ```python
-from sample_2_kd_tree import KDPoint, KDTree, HyperRectangle
+from sample_2_lru_cache import LRUCache
 
-points = [
-    KDPoint((2.0, 3.0), payload="A"),
-    KDPoint((5.0, 4.0), payload="B"),
-    KDPoint((9.0, 6.0), payload="C"),
-    KDPoint((4.0, 7.0), payload="D"),
-]
-tree = KDTree.build(points)
+# Initialize cache with max capacity of 2 items
+cache = LRUCache(capacity=2)
 
-# 1. Nearest neighbors
-neighbors = tree.k_nearest_neighbors(query=(2.1, 3.1), k=2)
-for match in neighbors:
-    print(f"Point {match.point.payload} at dist {match.distance:.3f}")
+cache.put("user_1", {"name": "Alice"})
+cache.put("user_2", {"name": "Bob"})
 
-# 2. Bounding box range search
-box = HyperRectangle(min_bounds=(1.0, 2.0), max_bounds=(6.0, 5.0))
-matches = tree.range_search(box)
-print(f"Points in box: {[p.payload for p in matches]}")
+# Access user_1 (marks it as Most Recently Used)
+print(cache.get("user_1"))
+
+# Insert user_3 (capacity exceeded -> evicts least recently used 'user_2')
+cache.put("user_3", {"name": "Charlie"})
+
+print(cache.get("user_2"))  # None (evicted)
+print("user_1" in cache)    # True
 ```
 
 ---
 
 ## Running the Tests
 
-All tests are written using Python's built-in `unittest` module, so no packages need to be installed.
+All tests run using Python's standard `unittest` library (zero installation required, fully compatible with `pytest`):
 
 ```bash
-# Run all 22 tests across both samples
-python new/run_all_tests.py
+# Run all 20 tests across both samples
+python run_all_tests.py
 
 # Or run tests individually
-python -m unittest discover -s new/sample_1_push_relabel
-python -m unittest discover -s new/sample_2_kd_tree
+python -m unittest discover -s sample_1_astar
+python -m unittest discover -s sample_2_lru_cache
 ```
 
 The test suites verify:
-- Edge cases (empty trees, disconnected components, antiparallel edges, invalid inputs)
-- Classic benchmarks (CLRS Chapter 26 flow network, diamond topology)
-- Flow conservation and max-flow min-cut duality
-- 5D randomized fuzzing comparing $k$-NN results directly against brute-force linear searches
+- **A\* Pathfinding:** Straight paths, labyrinth/obstacle avoidance, diagonal movement with corner-pinch prevention, unreachable targets, custom non-grid weighted graphs, and heuristic pruning efficiency vs Dijkstra.
+- **LRU Cache:** Eviction order, access refreshes, overwriting existing keys, single-capacity edge cases, `peek()` vs `get()`, deletions, clearing, iteration order (MRU to LRU), and TTL expiration.
